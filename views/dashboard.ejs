@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link href="/css/output.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 min-h-screen text-gray-800">
+    <!-- Navbar -->
+    <nav class="bg-white shadow-sm border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <span class="text-2xl font-bold text-blue-600">CatatKu</span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm font-medium text-gray-700">Halo, <%= user ? user.name : 'Pengguna' %></span>
+                    <form action="/auth/logout" method="POST" class="inline">
+                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                        <button type="submit"
+                            class="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition border border-red-200">
+                            Keluar
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100 mb-6">
+            <h1 class="text-2xl font-bold text-gray-900 mb-2">Selamat Datang di Dashboard</h1>
+            <p class="text-gray-600">
+                Email Anda: <span class="font-semibold text-gray-800"><%= user ? user.email : '' %></span>
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100">
+                <h2 class="text-lg font-semibold text-gray-700">Total Pemasukan</h2>
+                <p class="text-3xl font-bold text-green-600 mt-2">Rp 0</p>
+            </div>
+            <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100">
+                <h2 class="text-lg font-semibold text-gray-700">Total Pengeluaran</h2>
+                <p class="text-3xl font-bold text-red-600 mt-2">Rp 0</p>
+            </div>
+            <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100">
+                <h2 class="text-lg font-semibold text-gray-700">Sisa Anggaran</h2>
+                <p class="text-3xl font-bold text-blue-600 mt-2">Rp 0</p>
+            </div>
+        </div>
+    </main>
+</body>
+</html>
