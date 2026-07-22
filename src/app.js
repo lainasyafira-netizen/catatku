@@ -7,6 +7,7 @@ const dashboardRoutes = require('./routes/dashboardRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
 const transactionRoutes = require('./routes/transactionRoutes');
 const budgetRoutes = require('./routes/budgetRoutes');
+const reportRoutes = require('./routes/reportRoutes');
 const { requireAuth } = require('./middlewares/authMiddleware');
 
 const app = express();
@@ -73,6 +74,7 @@ app.use('/dashboard', requireAuth, dashboardRoutes);
 app.use('/categories', requireAuth, categoryRoutes);
 app.use('/transactions', requireAuth, transactionRoutes);
 app.use('/budgets', requireAuth, budgetRoutes);
+app.use('/reports', requireAuth, reportRoutes);
 
 app.listen(port, () => {
   console.log(`CatatKu app listening at http://localhost:${port}`);
