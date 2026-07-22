@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link href="/css/output.css" rel="stylesheet">
+    <script>
+        function openEditBudgetModal(categoryId, amount) {
+            document.getElementById('categoryId').value = categoryId;
+            document.getElementById('amount').value = amount;
+            document.getElementById('budgetFormTitle').innerText = 'Update Anggaran';
+            document.getElementById('budgetFormBtn').innerText = 'Update';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        
+        function formatIDR(amount) {
+            return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(amount);
+        }
+    </script>
+</head>
+<body class="bg-gray-100 min-h-screen text-gray-800 flex flex-col justify-between">
+    <div>
+        <!-- Navbar -->
+        <nav class="bg-white shadow-sm border-b border-gray-200">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between h-16">
+                    <div class="flex items-center space-x-8">
+                        <span class="text-2xl font-bold text-blue-600">CatatKu</span>
+                        <div class="hidden sm:flex space-x-4">
+                            <a href="/dashboard" class="px-3 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 rounded-md">
+                                Dashboard
+                            </a>
+                            <a href="/transactions" class="px-3 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 rounded-md">
+                                Transaksi
+                            </a>
+                            <a href="/budgets" class="px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-md">
+                                Anggaran
+                            </a>
+                            <a href="/categories" class="px-3 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 rounded-md">
+                                Kategori
+                            </a>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <span class="text-sm font-medium text-gray-700 hidden sm:inline">Halo, <%= user ? user.name : '' %></span>
+                        <form action="/auth/logout" method="POST" class="inline">
+                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                            <button type="submit" class="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition border border-red-200">
+                                Keluar
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900">Anggaran Bulanan</h1>
+                    <p class="text-sm text-gray-600">Tetapkan target pengeluaran agar keuangan lebih terkontrol</p>
+                </div>
+                
+                <!-- Period Selector -->
+                <div class="mt-4 md:mt-0">
+                    <form action="/budgets" method="GET" class="flex space-x-2">
+                        <select name="month" class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            <% const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']; %>
+                            <% months.forEach((m, idx) => { %>
+                                <option value="<%= idx + 1 %>" <%= currentMonth === (idx + 1) ? 'selected' : '' %>><%= m %></option>
+                            <% }); %>
+                        </select>
+                        <select name="year" class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            <% const startYear = new Date().getFullYear() - 2; %>
+                            <% for(let y = startYear; y <= startYear + 4; y++) { %>
+                                <option value="<%= y %>" <%= currentYear === y ? 'selected' : '' %>><%= y %></option>
+                            <% } %>
+                        </select>
+                        <button type="submit" class="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium hover:bg-gray-50">
+                            Tampilkan
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Alerts: Global Messages -->
+            <% if (error) { %>
+                <div class="mb-4 bg-red-50 border-l-4 border-red-500 p-4 text-red-700 text-sm rounded shadow-sm">
+                    <p class="font-medium"><%= error %></p>
+                </div>
+            <% } %>
+
+            <% if (success) { %>
+                <div class="mb-4 bg-green-50 border-l-4 border-green-500 p-4 text-green-700 text-sm rounded shadow-sm">
+                    <p class="font-medium"><%= success %></p>
+                </div>
+            <% } %>
+
+            <!-- Alerts: Budget Warnings -->
+            <% if (alerts && alerts.length > 0) { %>
+                <div class="mb-6 space-y-2">
+                    <% alerts.forEach(msg => { %>
+                        <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 text-yellow-800 text-sm rounded shadow-sm flex items-start">
+                            <svg class="h-5 w-5 text-yellow-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            <span class="font-medium"><%= msg %></span>
+                        </div>
+                    <% }); %>
+                </div>
+            <% } %>
+
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                <!-- Set Budget Form -->
+                <div class="lg:col-span-1 bg-white rounded-xl shadow-md p-6 border border-gray-100 h-fit sticky top-6">
+                    <h2 id="budgetFormTitle" class="text-lg font-bold text-gray-800 mb-4">Setel Anggaran</h2>
+                    
+                    <% if (categories.length === 0) { %>
+                        <div class="p-3 bg-yellow-50 text-yellow-800 text-sm rounded mb-4">
+                            Belum ada kategori pengeluaran.
+                        </div>
+                    <% } else { %>
+                        <form action="/budgets" method="POST" class="space-y-4">
+                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                            <input type="hidden" name="month" value="<%= currentMonth %>">
+                            <input type="hidden" name="year" value="<%= currentYear %>">
+
+                            <div>
+                                <label for="categoryId" class="block text-sm font-medium text-gray-700 mb-1">Kategori Pengeluaran</label>
+                                <select id="categoryId" name="categoryId" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                                    <option value="" disabled selected>Pilih Kategori</option>
+                                    <% categories.forEach(cat => { %>
+                                        <option value="<%= cat.id %>"><%= cat.name %></option>
+                                    <% }); %>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label for="amount" class="block text-sm font-medium text-gray-700 mb-1">Target Batas (Rp)</label>
+                                <input type="number" id="amount" name="amount" min="1" step="0.01" required placeholder="Contoh: 1500000" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                            </div>
+
+                            <button type="submit" id="budgetFormBtn" class="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md shadow-sm transition text-sm">
+                                Simpan Anggaran
+                            </button>
+                            <p class="text-xs text-gray-500 text-center mt-2">
+                                Menyimpan untuk bulan <%= months[currentMonth - 1] %> <%= currentYear %>
+                            </p>
+                        </form>
+                    <% } %>
+                </div>
+
+                <!-- Budget Progress List -->
+                <div class="lg:col-span-3">
+                    <% if (budgetData.length === 0) { %>
+                        <div class="bg-white rounded-xl shadow-md p-8 border border-gray-100 text-center text-gray-500">
+                            Belum ada anggaran yang disetel untuk bulan ini.
+                        </div>
+                    <% } else { %>
+                        <div class="space-y-4">
+                            <% budgetData.forEach(b => { %>
+                                <div class="bg-white rounded-xl shadow-md p-5 border border-gray-100">
+                                    <div class="flex justify-between items-center mb-2">
+                                        <h3 class="font-bold text-gray-800 text-lg"><%= b.category.name %></h3>
+                                        <div class="flex space-x-2">
+                                            <button onclick="openEditBudgetModal('<%= b.categoryId %>', '<%= b.amount %>')" class="text-xs text-blue-600 hover:text-blue-800 font-medium">Edit</button>
+                                            <form action="/budgets/<%= b.id %>/delete?month=<%= currentMonth %>&year=<%= currentYear %>" method="POST" class="inline" onsubmit="return confirm('Hapus anggaran ini?');">
+                                                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                                                <button type="submit" class="text-xs text-red-600 hover:text-red-800 font-medium">Hapus</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="flex justify-between text-sm text-gray-600 mb-2">
+                                        <span>Terpakai: <span class="font-medium text-gray-900">Rp <%= new Intl.NumberFormat('id-ID').format(b.spent) %></span></span>
+                                        <span>Sisa: <span class="font-medium text-gray-900">Rp <%= new Intl.NumberFormat('id-ID').format(Math.max(0, b.amount - b.spent)) %></span> / Rp <%= new Intl.NumberFormat('id-ID').format(b.amount) %></span>
+                                    </div>
+
+                                    <!-- Progress Bar Container -->
+                                    <div class="w-full bg-gray-200 rounded-full h-3">
+                                        <!-- Dynamic Progress Bar -->
+                                        <div class="<%= b.colorClass %> h-3 rounded-full transition-all duration-500 ease-out" style="width: <%= b.progress %>%"></div>
+                                    </div>
+                                    <div class="text-right text-xs mt-1 font-medium text-gray-500">
+                                        <%= b.rawProgress.toFixed(1) %>%
+                                    </div>
+                                </div>
+                            <% }); %>
+                        </div>
+                    <% } %>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>
