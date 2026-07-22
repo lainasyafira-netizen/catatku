@@ -11,11 +11,19 @@
     <nav class="bg-white shadow-sm border-b border-gray-200">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16">
-                <div class="flex items-center">
+                <div class="flex items-center space-x-8">
                     <span class="text-2xl font-bold text-blue-600">CatatKu</span>
+                    <div class="hidden sm:flex space-x-4">
+                        <a href="/dashboard" class="px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-md">
+                            Dashboard
+                        </a>
+                        <a href="/categories" class="px-3 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 rounded-md">
+                            Kategori
+                        </a>
+                    </div>
                 </div>
                 <div class="flex items-center space-x-4">
-                    <span class="text-sm font-medium text-gray-700">Halo, <%= user ? user.name : 'Pengguna' %></span>
+                    <span class="text-sm font-medium text-gray-700 hidden sm:inline">Halo, <%= user ? user.name : 'Pengguna' %></span>
                     <form action="/auth/logout" method="POST" class="inline">
                         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                         <button type="submit"

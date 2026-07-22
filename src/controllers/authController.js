@@ -60,12 +60,25 @@ exports.register = async (req, res) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user in database
+    // Default categories for new users
+    const defaultCategories = [
+      { name: 'Makanan', type: 'EXPENSE' },
+      { name: 'Transportasi', type: 'EXPENSE' },
+      { name: 'Pendidikan', type: 'EXPENSE' },
+      { name: 'Hiburan', type: 'EXPENSE' },
+      { name: 'Lainnya', type: 'EXPENSE' },
+      { name: 'Pemasukan Umum', type: 'INCOME' },
+    ];
+
+    // Create user in database along with default categories
     const user = await prisma.user.create({
       data: {
         name: name.trim(),
         email: email.toLowerCase().trim(),
         password: hashedPassword,
+        categories: {
+          create: defaultCategories,
+        },
       },
     });
 

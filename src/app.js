@@ -3,6 +3,7 @@ const express = require('express');
 const session = require('express-session');
 const csrf = require('csurf');
 const authRoutes = require('./routes/authRoutes');
+const categoryRoutes = require('./routes/categoryRoutes');
 const { requireAuth } = require('./middlewares/authMiddleware');
 
 const app = express();
@@ -68,6 +69,8 @@ app.use('/auth', authRoutes);
 app.get('/dashboard', requireAuth, (req, res) => {
   res.render('dashboard', { title: 'CatatKu - Dashboard' });
 });
+
+app.use('/categories', requireAuth, categoryRoutes);
 
 app.listen(port, () => {
   console.log(`CatatKu app listening at http://localhost:${port}`);
