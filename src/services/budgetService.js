@@ -39,12 +39,12 @@ class BudgetService {
     const budgetData = budgets.map(b => {
       const spent = spentByCategory[b.categoryId] || 0;
       const progress = b.amount > 0 ? (spent / b.amount) * 100 : 0;
-      let colorClass = 'bg-green-500';
+      let colorClass = 'bg-emerald-500 dark:bg-emerald-400';
       
       if (progress >= 100) {
-        colorClass = 'bg-red-500';
+        colorClass = 'bg-red-500 dark:bg-red-400';
       } else if (progress >= 80) {
-        colorClass = 'bg-yellow-500';
+        colorClass = 'bg-amber-500 dark:bg-amber-400';
       }
 
       return {

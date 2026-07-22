@@ -41,10 +41,11 @@ app.use(
 const csrfProtection = csrf();
 app.use(csrfProtection);
 
-// Global locals for views (CSRF Token & Logged-in User)
+// Global locals for views (CSRF Token, Logged-in User, & Current Path)
 app.use((req, res, next) => {
   res.locals.csrfToken = req.csrfToken();
   res.locals.user = req.session.user || null;
+  res.locals.currentPath = req.originalUrl ? req.originalUrl.split('?')[0] : req.path;
   next();
 });
 

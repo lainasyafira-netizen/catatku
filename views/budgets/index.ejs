@@ -1,201 +1,182 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><%= title %></title>
-    <link href="/css/output.css" rel="stylesheet">
-    <script>
-        function openEditBudgetModal(categoryId, amount) {
-            document.getElementById('categoryId').value = categoryId;
-            document.getElementById('amount').value = amount;
-            document.getElementById('budgetFormTitle').innerText = 'Update Anggaran';
-            document.getElementById('budgetFormBtn').innerText = 'Update';
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-        
-        function formatIDR(amount) {
-            return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(amount);
-        }
-    </script>
-</head>
-<body class="bg-gray-100 min-h-screen text-gray-800 flex flex-col justify-between">
-    <div>
-        <!-- Navbar -->
-        <nav class="bg-white shadow-sm border-b border-gray-200">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="flex justify-between h-16">
-                    <div class="flex items-center space-x-8">
-                        <span class="text-2xl font-bold text-blue-600">CatatKu</span>
-                        <div class="hidden sm:flex space-x-4">
-                            <a href="/dashboard" class="px-3 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 rounded-md">
-                                Dashboard
-                            </a>
-                            <a href="/transactions" class="px-3 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 rounded-md">
-                                Transaksi
-                            </a>
-                            <a href="/budgets" class="px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-md">
-                                Anggaran
-                            </a>
-                            <a href="/reports" class="px-3 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 rounded-md">
-                                Laporan
-                            </a>
-                            <a href="/categories" class="px-3 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 rounded-md">
-                                Kategori
-                            </a>
-                        </div>
-                    </div>
-                    <div class="flex items-center space-x-4">
-                        <span class="text-sm font-medium text-gray-700 hidden sm:inline">Halo, <%= user ? user.name : '' %></span>
-                        <form action="/auth/logout" method="POST" class="inline">
-                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                            <button type="submit" class="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition border border-red-200">
-                                Keluar
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </nav>
+<%- include('../partials/header') %>
+<%- include('../partials/navbar', { activePage: 'budgets' }) %>
 
-        <!-- Main Content -->
-        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
-                <div>
-                    <h1 class="text-2xl font-bold text-gray-900">Anggaran Bulanan</h1>
-                    <p class="text-sm text-gray-600">Tetapkan target pengeluaran agar keuangan lebih terkontrol</p>
+<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4">
+        <div>
+            <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Anggaran Bulanan</h1>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Tetapkan target pengeluaran agar keuangan Anda tetap terkontrol.</p>
+        </div>
+        
+        <!-- Period Selector -->
+        <div class="bg-white dark:bg-slate-800 p-1.5 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700/60 w-fit">
+            <form action="/budgets" method="GET" class="flex items-center space-x-2">
+                <select name="month" class="px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700/50 text-slate-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <% const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']; %>
+                    <% months.forEach((m, idx) => { %>
+                        <option value="<%= idx + 1 %>" <%= currentMonth === (idx + 1) ? 'selected' : '' %>><%= m %></option>
+                    <% }); %>
+                </select>
+                <select name="year" class="px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700/50 text-slate-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <% const startYear = new Date().getFullYear() - 2; %>
+                    <% for(let y = startYear; y <= startYear + 4; y++) { %>
+                        <option value="<%= y %>" <%= currentYear === y ? 'selected' : '' %>><%= y %></option>
+                    <% } %>
+                </select>
+                <button type="submit" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition shadow-sm">
+                    Tampilkan
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Alerts: Global Messages -->
+    <% if (error) { %>
+        <div class="mb-6 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/60 p-4 text-red-700 dark:text-red-300 text-sm rounded-2xl shadow-sm">
+            <p class="font-semibold"><%= error %></p>
+        </div>
+    <% } %>
+
+    <% if (success) { %>
+        <div class="mb-6 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 p-4 text-emerald-700 dark:text-emerald-300 text-sm rounded-2xl shadow-sm">
+            <p class="font-semibold"><%= success %></p>
+        </div>
+    <% } %>
+
+    <!-- Alerts: Budget Warnings -->
+    <% if (alerts && alerts.length > 0) { %>
+        <div class="mb-8 space-y-3">
+            <% alerts.forEach(msg => { %>
+                <div class="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 p-4 rounded-2xl shadow-sm flex items-start space-x-3 text-amber-800 dark:text-amber-300 text-sm">
+                    <svg class="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <span class="font-semibold"><%= msg %></span>
                 </div>
-                
-                <!-- Period Selector -->
-                <div class="mt-4 md:mt-0">
-                    <form action="/budgets" method="GET" class="flex space-x-2">
-                        <select name="month" class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                            <% const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']; %>
-                            <% months.forEach((m, idx) => { %>
-                                <option value="<%= idx + 1 %>" <%= currentMonth === (idx + 1) ? 'selected' : '' %>><%= m %></option>
+            <% }); %>
+        </div>
+    <% } %>
+
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <!-- Set Budget Form -->
+        <div class="lg:col-span-1 bg-white dark:bg-slate-800 rounded-2xl shadow-sm p-6 border border-slate-100 dark:border-slate-700/60 h-fit">
+            <h2 id="budgetFormTitle" class="text-lg font-bold text-slate-900 dark:text-white mb-4">Setel Anggaran</h2>
+            
+            <% if (categories.length === 0) { %>
+                <div class="p-4 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 text-xs rounded-xl border border-amber-200 dark:border-amber-800/40 mb-4">
+                    Belum ada kategori pengeluaran. Tambahkan di menu Kategori.
+                </div>
+            <% } else { %>
+                <form action="/budgets" method="POST" class="space-y-4">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <input type="hidden" name="month" value="<%= currentMonth %>">
+                    <input type="hidden" name="year" value="<%= currentYear %>">
+
+                    <div>
+                        <label for="categoryId" class="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">Kategori Pengeluaran</label>
+                        <select id="categoryId" name="categoryId" required class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700/50 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                            <option value="" disabled selected>Pilih Kategori</option>
+                            <% categories.forEach(cat => { %>
+                                <option value="<%= cat.id %>"><%= cat.name %></option>
                             <% }); %>
                         </select>
-                        <select name="year" class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                            <% const startYear = new Date().getFullYear() - 2; %>
-                            <% for(let y = startYear; y <= startYear + 4; y++) { %>
-                                <option value="<%= y %>" <%= currentYear === y ? 'selected' : '' %>><%= y %></option>
-                            <% } %>
-                        </select>
-                        <button type="submit" class="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium hover:bg-gray-50">
-                            Tampilkan
-                        </button>
-                    </form>
-                </div>
-            </div>
+                    </div>
 
-            <!-- Alerts: Global Messages -->
-            <% if (error) { %>
-                <div class="mb-4 bg-red-50 border-l-4 border-red-500 p-4 text-red-700 text-sm rounded shadow-sm">
-                    <p class="font-medium"><%= error %></p>
-                </div>
+                    <div>
+                        <label for="amount" class="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">Target Batas (Rp)</label>
+                        <input type="number" id="amount" name="amount" min="1" step="0.01" required placeholder="Contoh: 1500000" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700/50 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                    </div>
+
+                    <button type="submit" id="budgetFormBtn" class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white font-bold rounded-xl shadow-md shadow-blue-500/20 transition text-sm">
+                        Simpan Anggaran
+                    </button>
+                    <p class="text-xs text-slate-400 dark:text-slate-500 text-center mt-2">
+                        Periode <%= months[currentMonth - 1] %> <%= currentYear %>
+                    </p>
+                </form>
             <% } %>
+        </div>
 
-            <% if (success) { %>
-                <div class="mb-4 bg-green-50 border-l-4 border-green-500 p-4 text-green-700 text-sm rounded shadow-sm">
-                    <p class="font-medium"><%= success %></p>
+        <!-- Budget Progress List -->
+        <div class="lg:col-span-3">
+            <% if (budgetData.length === 0) { %>
+                <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm p-12 border border-slate-100 dark:border-slate-700/60 text-center text-slate-500 dark:text-slate-400 text-sm">
+                    Belum ada target anggaran yang disetel untuk bulan <%= months[currentMonth - 1] %> <%= currentYear %>.
                 </div>
-            <% } %>
+            <% } else { %>
+                <div class="space-y-4">
+                    <% budgetData.forEach(b => { %>
+                        <% 
+                            let fillBgClass = 'bg-emerald-500 dark:bg-emerald-400';
+                            if (b.rawProgress >= 100) {
+                                fillBgClass = 'bg-red-500 dark:bg-red-400';
+                            } else if (b.rawProgress >= 80) {
+                                fillBgClass = 'bg-amber-500 dark:bg-amber-400';
+                            }
+                            const fillWidth = Math.min(b.rawProgress, 100).toFixed(1);
+                        %>
+                        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm p-6 border border-slate-100 dark:border-slate-700/60 transition-transform duration-200 hover:-translate-y-0.5">
+                            <div class="flex justify-between items-center mb-3">
+                                <div class="flex items-center space-x-2">
+                                    <h3 class="font-extrabold text-slate-900 dark:text-white text-lg"><%= b.category.name %></h3>
+                                    <% if (b.rawProgress >= 100) { %>
+                                        <span class="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-md bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800/40">
+                                            Terlampaui
+                                        </span>
+                                    <% } else if (b.rawProgress >= 80) { %>
+                                        <span class="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-md bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/40">
+                                            Hampir Habis
+                                        </span>
+                                    <% } %>
+                                </div>
+                                <div class="flex space-x-3">
+                                    <button onclick="openEditBudgetModal('<%= b.categoryId %>', '<%= b.amount %>')" class="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline">Edit</button>
+                                    <form action="/budgets/<%= b.id %>/delete?month=<%= currentMonth %>&year=<%= currentYear %>" method="POST" class="inline" onsubmit="return confirm('Hapus anggaran ini?');">
+                                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                                        <button type="submit" class="text-xs font-semibold text-red-600 dark:text-red-400 hover:underline">Hapus</button>
+                                    </form>
+                                </div>
+                            </div>
+                            
+                            <div class="flex justify-between text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                                <span>Terpakai: <span class="text-slate-900 dark:text-white font-bold">Rp <%= new Intl.NumberFormat('id-ID').format(b.spent) %></span></span>
+                                <span>Sisa: <span class="text-slate-900 dark:text-white font-bold">Rp <%= new Intl.NumberFormat('id-ID').format(Math.max(0, b.amount - b.spent)) %></span> / Target: Rp <%= new Intl.NumberFormat('id-ID').format(b.amount) %></span>
+                            </div>
 
-            <!-- Alerts: Budget Warnings -->
-            <% if (alerts && alerts.length > 0) { %>
-                <div class="mb-6 space-y-2">
-                    <% alerts.forEach(msg => { %>
-                        <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 text-yellow-800 text-sm rounded shadow-sm flex items-start">
-                            <svg class="h-5 w-5 text-yellow-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                            </svg>
-                            <span class="font-medium"><%= msg %></span>
+                            <!-- Progress Bar Container (Track) -->
+                            <div class="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-4 overflow-hidden p-0.5">
+                                <!-- Dynamic Fill Bar -->
+                                <div class="<%= fillBgClass %> h-full rounded-full transition-all duration-500 ease-out" style="width: <%= fillWidth %>%;"></div>
+                            </div>
+                            
+                            <div class="flex justify-between items-center mt-2">
+                                <span class="text-[11px] text-slate-400 dark:text-slate-500">
+                                    <% if (b.rawProgress >= 100) { %>
+                                        Pengeluaran melebihi target anggaran yang ditentukan!
+                                    <% } else { %>
+                                        Batas pengeluaran aman
+                                    <% } %>
+                                </span>
+                                <span class="text-xs font-extrabold text-slate-700 dark:text-slate-300">
+                                    <%= b.rawProgress.toFixed(1) %>%
+                                </span>
+                            </div>
                         </div>
                     <% }); %>
                 </div>
             <% } %>
-
-            <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                <!-- Set Budget Form -->
-                <div class="lg:col-span-1 bg-white rounded-xl shadow-md p-6 border border-gray-100 h-fit sticky top-6">
-                    <h2 id="budgetFormTitle" class="text-lg font-bold text-gray-800 mb-4">Setel Anggaran</h2>
-                    
-                    <% if (categories.length === 0) { %>
-                        <div class="p-3 bg-yellow-50 text-yellow-800 text-sm rounded mb-4">
-                            Belum ada kategori pengeluaran.
-                        </div>
-                    <% } else { %>
-                        <form action="/budgets" method="POST" class="space-y-4">
-                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                            <input type="hidden" name="month" value="<%= currentMonth %>">
-                            <input type="hidden" name="year" value="<%= currentYear %>">
-
-                            <div>
-                                <label for="categoryId" class="block text-sm font-medium text-gray-700 mb-1">Kategori Pengeluaran</label>
-                                <select id="categoryId" name="categoryId" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                                    <option value="" disabled selected>Pilih Kategori</option>
-                                    <% categories.forEach(cat => { %>
-                                        <option value="<%= cat.id %>"><%= cat.name %></option>
-                                    <% }); %>
-                                </select>
-                            </div>
-
-                            <div>
-                                <label for="amount" class="block text-sm font-medium text-gray-700 mb-1">Target Batas (Rp)</label>
-                                <input type="number" id="amount" name="amount" min="1" step="0.01" required placeholder="Contoh: 1500000" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                            </div>
-
-                            <button type="submit" id="budgetFormBtn" class="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md shadow-sm transition text-sm">
-                                Simpan Anggaran
-                            </button>
-                            <p class="text-xs text-gray-500 text-center mt-2">
-                                Menyimpan untuk bulan <%= months[currentMonth - 1] %> <%= currentYear %>
-                            </p>
-                        </form>
-                    <% } %>
-                </div>
-
-                <!-- Budget Progress List -->
-                <div class="lg:col-span-3">
-                    <% if (budgetData.length === 0) { %>
-                        <div class="bg-white rounded-xl shadow-md p-8 border border-gray-100 text-center text-gray-500">
-                            Belum ada anggaran yang disetel untuk bulan ini.
-                        </div>
-                    <% } else { %>
-                        <div class="space-y-4">
-                            <% budgetData.forEach(b => { %>
-                                <div class="bg-white rounded-xl shadow-md p-5 border border-gray-100">
-                                    <div class="flex justify-between items-center mb-2">
-                                        <h3 class="font-bold text-gray-800 text-lg"><%= b.category.name %></h3>
-                                        <div class="flex space-x-2">
-                                            <button onclick="openEditBudgetModal('<%= b.categoryId %>', '<%= b.amount %>')" class="text-xs text-blue-600 hover:text-blue-800 font-medium">Edit</button>
-                                            <form action="/budgets/<%= b.id %>/delete?month=<%= currentMonth %>&year=<%= currentYear %>" method="POST" class="inline" onsubmit="return confirm('Hapus anggaran ini?');">
-                                                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                                                <button type="submit" class="text-xs text-red-600 hover:text-red-800 font-medium">Hapus</button>
-                                            </form>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="flex justify-between text-sm text-gray-600 mb-2">
-                                        <span>Terpakai: <span class="font-medium text-gray-900">Rp <%= new Intl.NumberFormat('id-ID').format(b.spent) %></span></span>
-                                        <span>Sisa: <span class="font-medium text-gray-900">Rp <%= new Intl.NumberFormat('id-ID').format(Math.max(0, b.amount - b.spent)) %></span> / Rp <%= new Intl.NumberFormat('id-ID').format(b.amount) %></span>
-                                    </div>
-
-                                    <!-- Progress Bar Container -->
-                                    <div class="w-full bg-gray-200 rounded-full h-3">
-                                        <!-- Dynamic Progress Bar -->
-                                        <div class="<%= b.colorClass %> h-3 rounded-full transition-all duration-500 ease-out" style="width: <%= b.progress %>%"></div>
-                                    </div>
-                                    <div class="text-right text-xs mt-1 font-medium text-gray-500">
-                                        <%= b.rawProgress.toFixed(1) %>%
-                                    </div>
-                                </div>
-                            <% }); %>
-                        </div>
-                    <% } %>
-                </div>
-            </div>
-        </main>
+        </div>
     </div>
-</body>
-</html>
+</main>
+
+<script>
+    function openEditBudgetModal(categoryId, amount) {
+        document.getElementById('categoryId').value = categoryId;
+        document.getElementById('amount').value = amount;
+        document.getElementById('budgetFormTitle').innerText = 'Update Anggaran';
+        document.getElementById('budgetFormBtn').innerText = 'Update Anggaran';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+</script>
+
+<%- include('../partials/footer') %>

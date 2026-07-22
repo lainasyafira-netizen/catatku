@@ -1,350 +1,287 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><%= title %></title>
-    <link href="/css/output.css" rel="stylesheet">
-    <script>
-        // Category filtering logic based on transaction type
-        document.addEventListener('DOMContentLoaded', () => {
-            function filterCategories(typeSelectId, categorySelectId) {
-                const typeSelect = document.getElementById(typeSelectId);
-                const categorySelect = document.getElementById(categorySelectId);
-                
-                if (!typeSelect || !categorySelect) return;
-                
-                const updateCategories = () => {
-                    const selectedType = typeSelect.value;
-                    let hasVisibleOptions = false;
-                    
-                    Array.from(categorySelect.options).forEach(option => {
-                        if (option.value === '') return; // Skip placeholder
-                        if (option.dataset.type === selectedType) {
-                            option.style.display = '';
-                            if (!hasVisibleOptions) {
-                                categorySelect.value = option.value;
-                                hasVisibleOptions = true;
-                            }
-                        } else {
-                            option.style.display = 'none';
-                        }
-                    });
-                    
-                    if (!hasVisibleOptions) {
-                        categorySelect.value = '';
-                    }
-                };
-                
-                typeSelect.addEventListener('change', updateCategories);
-                updateCategories(); // Initial run
-            }
-            
-            filterCategories('type', 'categoryId');
-            filterCategories('editType', 'editCategoryId');
-        });
-        
-        function openEditModal(id, type, categoryId, amount, dateStr, description) {
-            document.getElementById('editForm').action = '/transactions/' + id + '/edit';
-            document.getElementById('editType').value = type;
-            
-            // Trigger change event to filter categories before setting value
-            document.getElementById('editType').dispatchEvent(new Event('change'));
-            
-            document.getElementById('editCategoryId').value = categoryId;
-            document.getElementById('editAmount').value = amount;
-            
-            // Format date for datetime-local input (YYYY-MM-DDTHH:mm)
-            const d = new Date(dateStr);
-            const pad = n => n.toString().padStart(2, '0');
-            const formattedDate = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-            document.getElementById('editDate').value = formattedDate;
-            
-            document.getElementById('editDescription').value = description || '';
-            document.getElementById('editModal').classList.remove('hidden');
-        }
+<%- include('../partials/header') %>
+<%- include('../partials/navbar', { activePage: 'transactions' }) %>
 
-        function closeEditModal() {
-            document.getElementById('editModal').classList.add('hidden');
-        }
-        
-        function formatIDR(amount) {
-            return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(amount);
-        }
-    </script>
-</head>
-<body class="bg-gray-100 min-h-screen text-gray-800 flex flex-col justify-between">
-    <div>
-        <!-- Navbar -->
-        <nav class="bg-white shadow-sm border-b border-gray-200">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="flex justify-between h-16">
-                    <div class="flex items-center space-x-8">
-                        <span class="text-2xl font-bold text-blue-600">CatatKu</span>
-                        <div class="hidden sm:flex space-x-4">
-                            <a href="/dashboard" class="px-3 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 rounded-md">
-                                Dashboard
-                            </a>
-                            <a href="/transactions" class="px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-md">
-                                Transaksi
-                            </a>
-                            <a href="/budgets" class="px-3 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 rounded-md">
-                                Anggaran
-                            </a>
-                            <a href="/reports" class="px-3 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 rounded-md">
-                                Laporan
-                            </a>
-                            <a href="/categories" class="px-3 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 rounded-md">
-                                Kategori
-                            </a>
-                        </div>
-                    </div>
-                    <div class="flex items-center space-x-4">
-                        <span class="text-sm font-medium text-gray-700 hidden sm:inline">Halo, <%= user ? user.name : '' %></span>
-                        <form action="/auth/logout" method="POST" class="inline">
-                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                            <button type="submit" class="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition border border-red-200">
-                                Keluar
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </nav>
-
-        <!-- Main Content -->
-        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
-                <div>
-                    <h1 class="text-2xl font-bold text-gray-900">Kelola Transaksi</h1>
-                    <p class="text-sm text-gray-600">Catat pemasukan dan pengeluaran Anda</p>
-                </div>
-            </div>
-
-            <!-- Alerts -->
-            <% if (error) { %>
-                <div class="mb-6 bg-red-50 border-l-4 border-red-500 p-4 text-red-700 text-sm rounded shadow-sm">
-                    <p class="font-medium"><%= error %></p>
-                </div>
-            <% } %>
-
-            <% if (success) { %>
-                <div class="mb-6 bg-green-50 border-l-4 border-green-500 p-4 text-green-700 text-sm rounded shadow-sm">
-                    <p class="font-medium"><%= success %></p>
-                </div>
-            <% } %>
-
-            <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                <!-- Add Transaction Form -->
-                <div class="lg:col-span-1 bg-white rounded-xl shadow-md p-6 border border-gray-100 h-fit">
-                    <h2 class="text-lg font-bold text-gray-800 mb-4">Tambah Transaksi</h2>
-                    
-                    <% if (categories.length === 0) { %>
-                        <div class="p-3 bg-yellow-50 text-yellow-800 text-sm rounded mb-4">
-                            Silakan tambah kategori terlebih dahulu di halaman Kategori.
-                        </div>
-                    <% } else { %>
-                        <form action="/transactions" method="POST" class="space-y-4">
-                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-
-                            <div>
-                                <label for="type" class="block text-sm font-medium text-gray-700 mb-1">Tipe</label>
-                                <select id="type" name="type" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                                    <option value="EXPENSE">Pengeluaran</option>
-                                    <option value="INCOME">Pemasukan</option>
-                                </select>
-                            </div>
-
-                            <div>
-                                <label for="categoryId" class="block text-sm font-medium text-gray-700 mb-1">Kategori</label>
-                                <select id="categoryId" name="categoryId" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                                    <% categories.forEach(cat => { %>
-                                        <option value="<%= cat.id %>" data-type="<%= cat.type %>"><%= cat.name %></option>
-                                    <% }); %>
-                                </select>
-                            </div>
-
-                            <div>
-                                <label for="amount" class="block text-sm font-medium text-gray-700 mb-1">Jumlah (Rp)</label>
-                                <input type="number" id="amount" name="amount" min="1" step="0.01" required placeholder="Contoh: 50000" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                            </div>
-
-                            <div>
-                                <label for="date" class="block text-sm font-medium text-gray-700 mb-1">Tanggal</label>
-                                <input type="datetime-local" id="date" name="date" required value="<%= new Date().toISOString().slice(0, 16) %>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                            </div>
-
-                            <div>
-                                <label for="description" class="block text-sm font-medium text-gray-700 mb-1">Catatan (Opsional)</label>
-                                <input type="text" id="description" name="description" placeholder="Makan siang..." class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                            </div>
-
-                            <button type="submit" class="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md shadow-sm transition text-sm">
-                                Simpan Transaksi
-                            </button>
-                        </form>
-                    <% } %>
-                </div>
-
-                <!-- Transaction List Table -->
-                <div class="lg:col-span-3 bg-white rounded-xl shadow-md p-6 border border-gray-100">
-                    <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-lg font-bold text-gray-800">Daftar Transaksi Anda</h2>
-                        <!-- Simple type filter -->
-                        <div class="flex space-x-2">
-                            <a href="/transactions" class="text-xs px-2 py-1 rounded <%= !currentTypeFilter ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600' %>">Semua</a>
-                            <a href="/transactions?type=INCOME" class="text-xs px-2 py-1 rounded <%= currentTypeFilter === 'INCOME' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600' %>">Pemasukan</a>
-                            <a href="/transactions?type=EXPENSE" class="text-xs px-2 py-1 rounded <%= currentTypeFilter === 'EXPENSE' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600' %>">Pengeluaran</a>
-                        </div>
-                    </div>
-
-                    <% if (transactions.length === 0) { %>
-                        <div class="text-center py-8 text-gray-500">
-                            Belum ada transaksi yang tercatat.
-                        </div>
-                    <% } else { %>
-                        <div class="overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200">
-                                <thead class="bg-gray-50">
-                                    <tr>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kategori</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Catatan</th>
-                                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Jumlah</th>
-                                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="bg-white divide-y divide-gray-200">
-                                    <% transactions.forEach(t => { %>
-                                        <tr class="hover:bg-gray-50">
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                <%= new Date(t.date).toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) %>
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                                <%= t.category.name %>
-                                                <% if (t.type === 'INCOME') { %>
-                                                    <span class="ml-2 inline-block px-2 py-0.5 text-[10px] font-semibold rounded bg-green-100 text-green-800">IN</span>
-                                                <% } else { %>
-                                                    <span class="ml-2 inline-block px-2 py-0.5 text-[10px] font-semibold rounded bg-red-100 text-red-800">OUT</span>
-                                                <% } %>
-                                            </td>
-                                            <td class="px-6 py-4 text-sm text-gray-500 truncate max-w-[150px]">
-                                                <%= t.description || '-' %>
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-right <%= t.type === 'INCOME' ? 'text-green-600' : 'text-red-600' %>">
-                                                <%= t.type === 'INCOME' ? '+' : '-' %> Rp <%= new Intl.NumberFormat('id-ID').format(t.amount) %>
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium space-x-2">
-                                                <button onclick="openEditModal('<%= t.id %>', '<%= t.type %>', '<%= t.categoryId %>', '<%= t.amount %>', '<%= t.date.toISOString() %>', '<%= t.description || '' %>')" class="text-blue-600 hover:text-blue-900 font-semibold px-2 py-1 hover:bg-blue-50 rounded">
-                                                    Edit
-                                                </button>
-                                                <form action="/transactions/<%= t.id %>/delete" method="POST" class="inline" onsubmit="return confirm('Hapus transaksi ini?');">
-                                                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                                                    <button type="submit" class="text-red-600 hover:text-red-900 font-semibold px-2 py-1 hover:bg-red-50 rounded">
-                                                        Hapus
-                                                    </button>
-                                                </form>
-                                            </td>
-                                        </tr>
-                                    <% }); %>
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <!-- Pagination controls -->
-                        <% if (pagination.totalPages > 1) { %>
-                            <div class="mt-4 flex items-center justify-between border-t border-gray-200 bg-white pt-4">
-                                <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                                    <div>
-                                        <p class="text-sm text-gray-700">
-                                            Menampilkan <span class="font-medium"><%= ((pagination.page - 1) * pagination.limit) + 1 %></span> 
-                                            hingga <span class="font-medium"><%= Math.min(pagination.page * pagination.limit, pagination.totalItems) %></span> 
-                                            dari <span class="font-medium"><%= pagination.totalItems %></span> hasil
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                                            <% 
-                                                const typeQuery = currentTypeFilter ? `&type=${currentTypeFilter}` : ''; 
-                                            %>
-                                            
-                                            <% if (pagination.page > 1) { %>
-                                                <a href="?page=<%= pagination.page - 1 %><%= typeQuery %>" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
-                                                    <span class="sr-only">Previous</span>
-                                                    &laquo; Prev
-                                                </a>
-                                            <% } %>
-                                            
-                                            <!-- Simple page numbers -->
-                                            <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
-                                                Halaman <%= pagination.page %> / <%= pagination.totalPages %>
-                                            </span>
-
-                                            <% if (pagination.page < pagination.totalPages) { %>
-                                                <a href="?page=<%= pagination.page + 1 %><%= typeQuery %>" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
-                                                    <span class="sr-only">Next</span>
-                                                    Next &raquo;
-                                                </a>
-                                            <% } %>
-                                        </nav>
-                                    </div>
-                                </div>
-                            </div>
-                        <% } %>
-                    <% } %>
-                </div>
-            </div>
-        </main>
-    </div>
-
-    <!-- Edit Modal -->
-    <div id="editModal" class="fixed inset-0 z-50 hidden bg-gray-900 bg-opacity-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-            <div class="flex justify-between items-center mb-4 border-b pb-2">
-                <h3 class="text-lg font-bold text-gray-900">Edit Transaksi</h3>
-                <button onclick="closeEditModal()" class="text-gray-400 hover:text-gray-600 font-bold text-xl">&times;</button>
-            </div>
-            <form id="editForm" method="POST" class="space-y-4">
-                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-
-                <div>
-                    <label for="editType" class="block text-sm font-medium text-gray-700 mb-1">Tipe</label>
-                    <select id="editType" name="type" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                        <option value="EXPENSE">Pengeluaran</option>
-                        <option value="INCOME">Pemasukan</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label for="editCategoryId" class="block text-sm font-medium text-gray-700 mb-1">Kategori</label>
-                    <select id="editCategoryId" name="categoryId" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                        <% categories.forEach(cat => { %>
-                            <option value="<%= cat.id %>" data-type="<%= cat.type %>"><%= cat.name %></option>
-                        <% }); %>
-                    </select>
-                </div>
-
-                <div>
-                    <label for="editAmount" class="block text-sm font-medium text-gray-700 mb-1">Jumlah (Rp)</label>
-                    <input type="number" id="editAmount" name="amount" min="1" step="0.01" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                </div>
-
-                <div>
-                    <label for="editDate" class="block text-sm font-medium text-gray-700 mb-1">Tanggal</label>
-                    <input type="datetime-local" id="editDate" name="date" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                </div>
-
-                <div>
-                    <label for="editDescription" class="block text-sm font-medium text-gray-700 mb-1">Catatan</label>
-                    <input type="text" id="editDescription" name="description" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                </div>
-
-                <div class="flex justify-end space-x-3 pt-2">
-                    <button type="button" onclick="closeEditModal()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-medium rounded-md">Batal</button>
-                    <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md shadow-sm">Simpan Perubahan</button>
-                </div>
-            </form>
+<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
+        <div>
+            <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Kelola Transaksi</h1>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Catat seluruh arus masuk dan keluar keuangan Anda secara akurat.</p>
         </div>
     </div>
-</body>
-</html>
+
+    <!-- Alerts -->
+    <% if (error) { %>
+        <div class="mb-6 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/60 p-4 text-red-700 dark:text-red-300 text-sm rounded-2xl shadow-sm">
+            <p class="font-semibold"><%= error %></p>
+        </div>
+    <% } %>
+
+    <% if (success) { %>
+        <div class="mb-6 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 p-4 text-emerald-700 dark:text-emerald-300 text-sm rounded-2xl shadow-sm">
+            <p class="font-semibold"><%= success %></p>
+        </div>
+    <% } %>
+
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <!-- Add Transaction Form -->
+        <div class="lg:col-span-1 bg-white dark:bg-slate-800 rounded-2xl shadow-sm p-6 border border-slate-100 dark:border-slate-700/60 h-fit">
+            <h2 class="text-lg font-bold text-slate-900 dark:text-white mb-4">Tambah Transaksi</h2>
+            
+            <% if (categories.length === 0) { %>
+                <div class="p-4 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 text-xs rounded-xl border border-amber-200 dark:border-amber-800/40 mb-4">
+                    Silakan tambah kategori terlebih dahulu di halaman Kategori.
+                </div>
+            <% } else { %>
+                <form action="/transactions" method="POST" class="space-y-4">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+                    <div>
+                        <label for="type" class="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">Tipe Transaksi</label>
+                        <select id="type" name="type" required class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700/50 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                            <option value="EXPENSE">Pengeluaran</option>
+                            <option value="INCOME">Pemasukan</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="categoryId" class="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">Kategori</label>
+                        <select id="categoryId" name="categoryId" required class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700/50 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                            <% categories.forEach(cat => { %>
+                                <option value="<%= cat.id %>" data-type="<%= cat.type %>"><%= cat.name %></option>
+                            <% }); %>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="amount" class="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">Jumlah (Rp)</label>
+                        <input type="number" id="amount" name="amount" min="1" step="0.01" required placeholder="Contoh: 50000" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700/50 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                    </div>
+
+                    <div>
+                        <label for="date" class="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">Tanggal</label>
+                        <input type="datetime-local" id="date" name="date" required value="<%= new Date().toISOString().slice(0, 16) %>" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700/50 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                    </div>
+
+                    <div>
+                        <label for="description" class="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">Catatan (Opsional)</label>
+                        <input type="text" id="description" name="description" placeholder="Makan siang..." class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700/50 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                    </div>
+
+                    <button type="submit" class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white font-bold rounded-xl shadow-md shadow-blue-500/20 transition text-sm">
+                        Simpan Transaksi
+                    </button>
+                </form>
+            <% } %>
+        </div>
+
+        <!-- Transaction List Table -->
+        <div class="lg:col-span-3 bg-white dark:bg-slate-800 rounded-2xl shadow-sm p-6 border border-slate-100 dark:border-slate-700/60">
+            <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
+                <h2 class="text-lg font-bold text-slate-900 dark:text-white">Daftar Transaksi Anda</h2>
+                <!-- Filter Pills -->
+                <div class="flex space-x-1.5 bg-slate-100 dark:bg-slate-700/50 p-1 rounded-xl w-fit">
+                    <a href="/transactions" class="text-xs font-semibold px-3 py-1.5 rounded-lg transition <%= !currentTypeFilter ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200' %>">Semua</a>
+                    <a href="/transactions?type=INCOME" class="text-xs font-semibold px-3 py-1.5 rounded-lg transition <%= currentTypeFilter === 'INCOME' ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200' %>">Pemasukan</a>
+                    <a href="/transactions?type=EXPENSE" class="text-xs font-semibold px-3 py-1.5 rounded-lg transition <%= currentTypeFilter === 'EXPENSE' ? 'bg-white dark:bg-slate-800 text-red-600 dark:text-red-400 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200' %>">Pengeluaran</a>
+                </div>
+            </div>
+
+            <% if (transactions.length === 0) { %>
+                <div class="text-center py-12 text-slate-500 dark:text-slate-400 text-sm">
+                    Belum ada transaksi yang tercatat.
+                </div>
+            <% } else { %>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+                        <thead class="bg-slate-50 dark:bg-slate-700/50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Tanggal</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Kategori</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Catatan</th>
+                                <th class="px-6 py-3 text-right text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Jumlah</th>
+                                <th class="px-6 py-3 text-center text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
+                            <% transactions.forEach(t => { %>
+                                <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
+                                        <%= new Date(t.date).toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) %>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-slate-900 dark:text-white">
+                                        <%= t.category.name %>
+                                        <% if (t.type === 'INCOME') { %>
+                                            <span class="ml-2 inline-block px-2 py-0.5 text-[10px] font-bold rounded-md bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/40">IN</span>
+                                        <% } else { %>
+                                            <span class="ml-2 inline-block px-2 py-0.5 text-[10px] font-bold rounded-md bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300 border border-red-200 dark:border-red-800/40">OUT</span>
+                                        <% } %>
+                                    </td>
+                                    <td class="px-6 py-4 text-sm text-slate-500 dark:text-slate-400 truncate max-w-[150px]">
+                                        <%= t.description || '-' %>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-extrabold text-right <%= t.type === 'INCOME' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400' %>">
+                                        <%= t.type === 'INCOME' ? '+' : '-' %> Rp <%= new Intl.NumberFormat('id-ID').format(t.amount) %>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium space-x-2">
+                                        <button onclick="openEditModal('<%= t.id %>', '<%= t.type %>', '<%= t.categoryId %>', '<%= t.amount %>', '<%= t.date.toISOString() %>', '<%= t.description || '' %>')" class="text-blue-600 dark:text-blue-400 hover:text-blue-900 font-semibold px-2.5 py-1 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-lg transition">
+                                            Edit
+                                        </button>
+                                        <form action="/transactions/<%= t.id %>/delete" method="POST" class="inline" onsubmit="return confirm('Hapus transaksi ini?');">
+                                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                                            <button type="submit" class="text-red-600 dark:text-red-400 hover:text-red-900 font-semibold px-2.5 py-1 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition">
+                                                Hapus
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            <% }); %>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination controls -->
+                <% if (pagination.totalPages > 1) { %>
+                    <div class="mt-6 flex flex-col sm:flex-row items-center justify-between border-t border-slate-200 dark:border-slate-700 pt-4 gap-4">
+                        <p class="text-sm text-slate-500 dark:text-slate-400">
+                            Menampilkan <span class="font-semibold text-slate-700 dark:text-slate-200"><%= ((pagination.page - 1) * pagination.limit) + 1 %></span> 
+                            hingga <span class="font-semibold text-slate-700 dark:text-slate-200"><%= Math.min(pagination.page * pagination.limit, pagination.totalItems) %></span> 
+                            dari <span class="font-semibold text-slate-700 dark:text-slate-200"><%= pagination.totalItems %></span> hasil
+                        </p>
+                        <div class="inline-flex space-x-1">
+                            <% const typeQuery = currentTypeFilter ? `&type=${currentTypeFilter}` : ''; %>
+                            
+                            <% if (pagination.page > 1) { %>
+                                <a href="?page=<%= pagination.page - 1 %><%= typeQuery %>" class="px-3 py-1.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition">
+                                    &laquo; Prev
+                                </a>
+                            <% } %>
+                            
+                            <span class="px-3 py-1.5 bg-slate-100 dark:bg-slate-700 rounded-lg text-sm font-semibold text-slate-700 dark:text-slate-300">
+                                <%= pagination.page %> / <%= pagination.totalPages %>
+                            </span>
+
+                            <% if (pagination.page < pagination.totalPages) { %>
+                                <a href="?page=<%= pagination.page + 1 %><%= typeQuery %>" class="px-3 py-1.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition">
+                                    Next &raquo;
+                                </a>
+                            <% } %>
+                        </div>
+                    </div>
+                <% } %>
+            <% } %>
+        </div>
+    </div>
+</main>
+
+<!-- Edit Modal -->
+<div id="editModal" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-6 border border-slate-100 dark:border-slate-700">
+        <div class="flex justify-between items-center mb-4 border-b border-slate-200 dark:border-slate-700 pb-3">
+            <h3 class="text-lg font-bold text-slate-900 dark:text-white">Edit Transaksi</h3>
+            <button onclick="closeEditModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-bold text-xl">&times;</button>
+        </div>
+        <form id="editForm" method="POST" class="space-y-4">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+            <div>
+                <label for="editType" class="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">Tipe</label>
+                <select id="editType" name="type" required class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700/50 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                    <option value="EXPENSE">Pengeluaran</option>
+                    <option value="INCOME">Pemasukan</option>
+                </select>
+            </div>
+
+            <div>
+                <label for="editCategoryId" class="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">Kategori</label>
+                <select id="editCategoryId" name="categoryId" required class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700/50 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                    <% categories.forEach(cat => { %>
+                        <option value="<%= cat.id %>" data-type="<%= cat.type %>"><%= cat.name %></option>
+                    <% }); %>
+                </select>
+            </div>
+
+            <div>
+                <label for="editAmount" class="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">Jumlah (Rp)</label>
+                <input type="number" id="editAmount" name="amount" min="1" step="0.01" required class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700/50 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+            </div>
+
+            <div>
+                <label for="editDate" class="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">Tanggal</label>
+                <input type="datetime-local" id="editDate" name="date" required class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700/50 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+            </div>
+
+            <div>
+                <label for="editDescription" class="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">Catatan</label>
+                <input type="text" id="editDescription" name="description" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700/50 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+            </div>
+
+            <div class="flex justify-end space-x-3 pt-2">
+                <button type="button" onclick="closeEditModal()" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-sm font-semibold rounded-xl transition">Batal</button>
+                <button type="submit" class="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl shadow-md transition">Simpan Perubahan</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        function filterCategories(typeSelectId, categorySelectId) {
+            const typeSelect = document.getElementById(typeSelectId);
+            const categorySelect = document.getElementById(categorySelectId);
+            
+            if (!typeSelect || !categorySelect) return;
+            
+            const updateCategories = () => {
+                const selectedType = typeSelect.value;
+                let hasVisibleOptions = false;
+                
+                Array.from(categorySelect.options).forEach(option => {
+                    if (option.value === '') return;
+                    if (option.dataset.type === selectedType) {
+                        option.style.display = '';
+                        if (!hasVisibleOptions) {
+                            categorySelect.value = option.value;
+                            hasVisibleOptions = true;
+                        }
+                    } else {
+                        option.style.display = 'none';
+                    }
+                });
+                
+                if (!hasVisibleOptions) {
+                    categorySelect.value = '';
+                }
+            };
+            
+            typeSelect.addEventListener('change', updateCategories);
+            updateCategories();
+        }
+        
+        filterCategories('type', 'categoryId');
+        filterCategories('editType', 'editCategoryId');
+    });
+
+    function openEditModal(id, type, categoryId, amount, dateStr, description) {
+        document.getElementById('editForm').action = '/transactions/' + id + '/edit';
+        document.getElementById('editType').value = type;
+        
+        document.getElementById('editType').dispatchEvent(new Event('change'));
+        
+        document.getElementById('editCategoryId').value = categoryId;
+        document.getElementById('editAmount').value = amount;
+        
+        const d = new Date(dateStr);
+        const pad = n => n.toString().padStart(2, '0');
+        const formattedDate = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        document.getElementById('editDate').value = formattedDate;
+        
+        document.getElementById('editDescription').value = description || '';
+        document.getElementById('editModal').classList.remove('hidden');
+    }
+
+    function closeEditModal() {
+        document.getElementById('editModal').classList.add('hidden');
+    }
+</script>
+
+<%- include('../partials/footer') %>

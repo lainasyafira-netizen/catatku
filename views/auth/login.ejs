@@ -1,63 +1,93 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><%= title %></title>
-    <link href="/css/output.css" rel="stylesheet">
-</head>
-<body class="bg-gray-100 min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-md w-full space-y-8 bg-white p-8 rounded-xl shadow-lg">
-        <div>
-            <h2 class="mt-2 text-center text-3xl font-extrabold text-gray-900">
-                Masuk ke CatatKu
+<%- include('../partials/header') %>
+
+<div class="min-h-screen flex flex-col justify-between p-4 sm:p-6">
+    <!-- Top Bar with Theme Toggle & Logo -->
+    <div class="flex justify-between items-center max-w-md w-full mx-auto">
+        <a href="/" class="flex items-center space-x-2 text-xl font-extrabold text-blue-600 dark:text-blue-400">
+            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <span>CatatKu</span>
+        </a>
+        <button type="button" onclick="toggleDarkMode()" aria-label="Toggle Dark Mode" class="p-2 rounded-lg text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800 transition-colors">
+            <svg class="w-5 h-5 hidden dark:block text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+            </svg>
+            <svg class="w-5 h-5 block dark:hidden text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+            </svg>
+        </button>
+    </div>
+
+    <!-- Centered Card -->
+    <div class="my-auto max-w-md w-full mx-auto bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700/60 transition-colors duration-200">
+        <div class="text-center mb-8">
+            <h2 class="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                Selamat Datang Kembali
             </h2>
-            <p class="mt-2 text-center text-sm text-gray-600">
-                Selamat datang kembali! Masuk untuk mengelola keuanganmu.
+            <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                Masuk ke akun CatatKu Anda untuk melanjutkan pencatatan.
             </p>
         </div>
 
         <% if (error) { %>
-            <div class="bg-red-50 border-l-4 border-red-500 p-4 text-red-700 text-sm rounded">
-                <p><%= error %></p>
+            <div class="mb-6 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/60 p-4 text-red-700 dark:text-red-300 text-sm rounded-xl flex items-center space-x-3">
+                <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <span><%= error %></span>
             </div>
         <% } %>
 
-        <form class="mt-8 space-y-6" action="/auth/login" method="POST">
+        <form action="/auth/login" method="POST" class="space-y-5">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
-            <div class="rounded-md shadow-sm space-y-4">
-                <div>
-                    <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
-                    <input id="email" name="email" type="email" required value="<%= formData.email || '' %>"
-                        class="mt-1 appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                        placeholder="nama@email.com">
-                </div>
-
-                <div>
-                    <label for="password" class="block text-sm font-medium text-gray-700">Kata Sandi</label>
-                    <input id="password" name="password" type="password" required
-                        class="mt-1 appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                        placeholder="••••••••">
-                </div>
+            <div>
+                <label for="email" class="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">Email</label>
+                <input id="email" name="email" type="email" required value="<%= formData.email || '' %>"
+                    class="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700/50 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 text-sm transition"
+                    placeholder="nama@email.com">
             </div>
 
             <div>
-                <button type="submit"
-                    class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150">
-                    Masuk
-                </button>
+                <label for="password" class="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">Kata Sandi</label>
+                <input id="password" name="password" type="password" required
+                    class="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700/50 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 text-sm transition"
+                    placeholder="••••••••">
             </div>
 
-            <div class="text-center mt-4">
-                <p class="text-sm text-gray-600">
-                    Belum punya akun?
-                    <a href="/auth/register" class="font-medium text-blue-600 hover:text-blue-500">
-                        Daftar di sini
-                    </a>
-                </p>
-            </div>
+            <button type="submit"
+                class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white font-bold rounded-xl shadow-lg shadow-blue-500/25 transition duration-150 text-sm">
+                Masuk ke Akun
+            </button>
         </form>
+
+        <div class="text-center mt-6 pt-6 border-t border-slate-100 dark:border-slate-700/60">
+            <p class="text-sm text-slate-600 dark:text-slate-400">
+                Belum memiliki akun?
+                <a href="/auth/register" class="font-bold text-blue-600 dark:text-blue-400 hover:underline">
+                    Daftar sekarang
+                </a>
+            </p>
+        </div>
     </div>
+
+    <div class="text-center text-xs text-slate-400 dark:text-slate-500">
+        &copy; <%= new Date().getFullYear() %> CatatKu. All rights reserved.
+    </div>
+</div>
+
+<!-- Inline Dark Mode toggle script for standalone page -->
+<script>
+    function toggleDarkMode() {
+        if (document.documentElement.classList.contains('dark')) {
+            document.documentElement.classList.remove('dark');
+            localStorage.setItem('theme', 'light');
+        } else {
+            document.documentElement.classList.add('dark');
+            localStorage.setItem('theme', 'dark');
+        }
+    }
+</script>
 </body>
 </html>
