@@ -1,4 +1,4 @@
-const prisma = require('../lib/prisma');
+const transactionService = require('../services/transactionService');
 
 /**
  * Display all transactions for the logged-in user with pagination
@@ -10,34 +10,14 @@ exports.getTransactions = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const typeFilter = req.query.type;
     
-    // Build where clause
-    const where = { userId };
-    if (typeFilter && ['INCOME', 'EXPENSE'].includes(typeFilter)) {
-      where.type = typeFilter;
-    }
-
-    const skip = (page - 1) * limit;
-
-    // Fetch total count for pagination
-    const totalItems = await prisma.transaction.count({ where });
-    const totalPages = Math.ceil(totalItems / limit);
-
-    // Fetch transactions
-    const transactions = await prisma.transaction.findMany({
-      where,
-      include: {
-        category: true,
-      },
-      orderBy: { date: 'desc' },
-      skip,
-      take: limit,
+    const { transactions, pagination } = await transactionService.getTransactions({
+      userId,
+      page,
+      limit,
+      typeFilter
     });
 
-    // Fetch all categories for the add/edit forms
-    const categories = await prisma.category.findMany({
-      where: { userId },
-      orderBy: { name: 'asc' },
-    });
+    const categories = await transactionService.getAllCategories(userId);
 
     const error = req.query.error || null;
     const success = req.query.success || null;
@@ -46,12 +26,7 @@ exports.getTransactions = async (req, res) => {
       title: 'CatatKu - Kelola Transaksi',
       transactions,
       categories,
-      pagination: {
-        page,
-        limit,
-        totalPages,
-        totalItems,
-      },
+      pagination,
       currentTypeFilter: typeFilter,
       error,
       success,
@@ -97,31 +72,19 @@ exports.createTransaction = async (req, res) => {
       return res.redirect('/transactions?error=Kategori+wajib+dipilih.');
     }
 
-    // Verify category belongs to user and matches type (optional but good practice)
-    const category = await prisma.category.findFirst({
-      where: { id: parsedCategoryId, userId, type },
-    });
-
-    if (!category) {
-      return res.redirect('/transactions?error=Kategori+tidak+valid+atau+tidak+sesuai+tipe.');
-    }
-
-    // Create transaction
-    await prisma.transaction.create({
-      data: {
-        userId,
-        categoryId: parsedCategoryId,
-        type,
-        amount: parsedAmount,
-        date: new Date(date),
-        description: description ? description.trim() : null,
-      },
+    await transactionService.createTransaction({
+      userId,
+      type,
+      categoryId: parsedCategoryId,
+      amount: parsedAmount,
+      date,
+      description
     });
 
     return res.redirect('/transactions?success=Transaksi+berhasil+ditambahkan.');
   } catch (err) {
     console.error('Error creating transaction:', err);
-    return res.redirect('/transactions?error=Gagal+menambahkan+transaksi.');
+    return res.redirect(`/transactions?error=${encodeURIComponent(err.message || 'Gagal menambahkan transaksi.')}`);
   }
 };
 
@@ -158,40 +121,20 @@ exports.updateTransaction = async (req, res) => {
       return res.redirect('/transactions?error=Kategori+wajib+dipilih.');
     }
 
-    // Check ownership
-    const transaction = await prisma.transaction.findFirst({
-      where: { id: transactionId, userId },
-    });
-
-    if (!transaction) {
-      return res.redirect('/transactions?error=Transaksi+tidak+ditemukan.');
-    }
-
-    // Verify category belongs to user and matches type
-    const category = await prisma.category.findFirst({
-      where: { id: parsedCategoryId, userId, type },
-    });
-
-    if (!category) {
-      return res.redirect('/transactions?error=Kategori+tidak+valid+atau+tidak+sesuai+tipe.');
-    }
-
-    // Update transaction
-    await prisma.transaction.update({
-      where: { id: transactionId },
-      data: {
-        categoryId: parsedCategoryId,
-        type,
-        amount: parsedAmount,
-        date: new Date(date),
-        description: description ? description.trim() : null,
-      },
+    await transactionService.updateTransaction({
+      transactionId,
+      userId,
+      type,
+      categoryId: parsedCategoryId,
+      amount: parsedAmount,
+      date,
+      description
     });
 
     return res.redirect('/transactions?success=Transaksi+berhasil+diperbarui.');
   } catch (err) {
     console.error('Error updating transaction:', err);
-    return res.redirect('/transactions?error=Gagal+mengedit+transaksi.');
+    return res.redirect(`/transactions?error=${encodeURIComponent(err.message || 'Gagal mengedit transaksi.')}`);
   }
 };
 
@@ -208,23 +151,11 @@ exports.deleteTransaction = async (req, res) => {
       return res.redirect('/transactions?error=ID+transaksi+tidak+valid.');
     }
 
-    // Check ownership
-    const transaction = await prisma.transaction.findFirst({
-      where: { id: transactionId, userId },
-    });
-
-    if (!transaction) {
-      return res.redirect('/transactions?error=Transaksi+tidak+ditemukan.');
-    }
-
-    // Delete transaction
-    await prisma.transaction.delete({
-      where: { id: transactionId },
-    });
+    await transactionService.deleteTransaction({ transactionId, userId });
 
     return res.redirect('/transactions?success=Transaksi+berhasil+dihapus.');
   } catch (err) {
     console.error('Error deleting transaction:', err);
-    return res.redirect('/transactions?error=Gagal+menghapus+transaksi.');
+    return res.redirect(`/transactions?error=${encodeURIComponent(err.message || 'Gagal menghapus transaksi.')}`);
   }
 };

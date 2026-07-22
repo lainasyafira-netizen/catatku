@@ -1,5 +1,4 @@
-const bcrypt = require('bcryptjs');
-const prisma = require('../lib/prisma');
+const authService = require('../services/authService');
 
 /**
  * Display registration page
@@ -19,7 +18,7 @@ exports.register = async (req, res) => {
   const { name, email, password, confirmPassword } = req.body;
 
   try {
-    // Basic validation
+    // Basic validation in controller
     if (!name || !email || !password) {
       return res.render('auth/register', {
         title: 'CatatKu - Registrasi',
@@ -44,43 +43,8 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Check existing email
-    const existingUser = await prisma.user.findUnique({
-      where: { email: email.toLowerCase().trim() },
-    });
-
-    if (existingUser) {
-      return res.render('auth/register', {
-        title: 'CatatKu - Registrasi',
-        error: 'Email sudah terdaftar. Silakan gunakan email lain.',
-        formData: { name, email },
-      });
-    }
-
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Default categories for new users
-    const defaultCategories = [
-      { name: 'Makanan', type: 'EXPENSE' },
-      { name: 'Transportasi', type: 'EXPENSE' },
-      { name: 'Pendidikan', type: 'EXPENSE' },
-      { name: 'Hiburan', type: 'EXPENSE' },
-      { name: 'Lainnya', type: 'EXPENSE' },
-      { name: 'Pemasukan Umum', type: 'INCOME' },
-    ];
-
-    // Create user in database along with default categories
-    const user = await prisma.user.create({
-      data: {
-        name: name.trim(),
-        email: email.toLowerCase().trim(),
-        password: hashedPassword,
-        categories: {
-          create: defaultCategories,
-        },
-      },
-    });
+    // Call service to handle business logic & database
+    const user = await authService.registerUser({ name, email, password });
 
     // Set session after successful registration
     req.session.userId = user.id;
@@ -95,7 +59,8 @@ exports.register = async (req, res) => {
     console.error('Error during registration:', err);
     return res.render('auth/register', {
       title: 'CatatKu - Registrasi',
-      error: 'Terjadi kesalahan pada server. Silakan coba lagi.',
+      // Display specific service error if it exists, else generic
+      error: err.message || 'Terjadi kesalahan pada server. Silakan coba lagi.',
       formData: { name, email },
     });
   }
@@ -127,27 +92,8 @@ exports.login = async (req, res) => {
       });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: email.toLowerCase().trim() },
-    });
-
-    if (!user) {
-      return res.render('auth/login', {
-        title: 'CatatKu - Masuk',
-        error: 'Email atau kata sandi salah.',
-        formData: { email },
-      });
-    }
-
-    // Compare hashed password
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      return res.render('auth/login', {
-        title: 'CatatKu - Masuk',
-        error: 'Email atau kata sandi salah.',
-        formData: { email },
-      });
-    }
+    // Call service
+    const user = await authService.loginUser({ email, password });
 
     // Set session
     req.session.userId = user.id;
@@ -162,7 +108,7 @@ exports.login = async (req, res) => {
     console.error('Error during login:', err);
     return res.render('auth/login', {
       title: 'CatatKu - Masuk',
-      error: 'Terjadi kesalahan pada server. Silakan coba lagi.',
+      error: err.message || 'Terjadi kesalahan pada server. Silakan coba lagi.',
       formData: { email },
     });
   }

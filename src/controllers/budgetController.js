@@ -1,4 +1,4 @@
-const prisma = require('../lib/prisma');
+const budgetService = require('../services/budgetService');
 
 /**
  * Display all budgets for the logged-in user for a specific month and year
@@ -11,71 +11,10 @@ exports.getBudgets = async (req, res) => {
     const currentQueryMonth = parseInt(req.query.month) || new Date().getMonth() + 1;
     const currentQueryYear = parseInt(req.query.year) || new Date().getFullYear();
 
-    // Fetch all EXPENSE categories
-    const categories = await prisma.category.findMany({
-      where: { userId, type: 'EXPENSE' },
-      orderBy: { name: 'asc' },
-    });
-
-    // Fetch budgets for the selected month/year
-    const budgets = await prisma.budget.findMany({
-      where: { userId, month: currentQueryMonth, year: currentQueryYear },
-      include: { category: true },
-    });
-
-    // Fetch all EXPENSE transactions for the selected month/year to calculate spent amount
-    // Build date range for the month
-    const startDate = new Date(currentQueryYear, currentQueryMonth - 1, 1);
-    const endDate = new Date(currentQueryYear, currentQueryMonth, 1); // 1st day of next month
-
-    const transactions = await prisma.transaction.findMany({
-      where: {
-        userId,
-        type: 'EXPENSE',
-        date: {
-          gte: startDate,
-          lt: endDate,
-        },
-      },
-    });
-
-    // Group transactions by categoryId
-    const spentByCategory = {};
-    transactions.forEach(t => {
-      if (!spentByCategory[t.categoryId]) {
-        spentByCategory[t.categoryId] = 0;
-      }
-      spentByCategory[t.categoryId] += t.amount;
-    });
-
-    // Combine budgets with spent amounts and calculate progress
-    const budgetData = budgets.map(b => {
-      const spent = spentByCategory[b.categoryId] || 0;
-      const progress = b.amount > 0 ? (spent / b.amount) * 100 : 0;
-      let colorClass = 'bg-green-500';
-      
-      if (progress >= 100) {
-        colorClass = 'bg-red-500';
-      } else if (progress >= 80) {
-        colorClass = 'bg-yellow-500';
-      }
-
-      return {
-        ...b,
-        spent,
-        progress: Math.min(progress, 100), // Cap at 100% for progress bar display
-        rawProgress: progress,
-        colorClass,
-      };
-    }).sort((a, b) => b.rawProgress - a.rawProgress); // Sort by highest usage first
-
-    // Generate alerts for > 80% usage
-    const alerts = budgetData.filter(b => b.rawProgress >= 80).map(b => {
-      if (b.rawProgress >= 100) {
-        return `Peringatan Kritis: Anggaran "${b.category.name}" telah melebihi batas (Terpakai ${b.rawProgress.toFixed(1)}%)!`;
-      } else {
-        return `Perhatian: Anggaran "${b.category.name}" hampir habis (Terpakai ${b.rawProgress.toFixed(1)}%).`;
-      }
+    const { categories, budgetData, alerts } = await budgetService.getBudgetData({
+      userId,
+      month: currentQueryMonth,
+      year: currentQueryYear
     });
 
     const error = req.query.error || null;
@@ -127,45 +66,20 @@ exports.saveBudget = async (req, res) => {
       return res.redirect('/budgets?error=Bulan+atau+tahun+tidak+valid.');
     }
 
-    // Verify category belongs to user and is EXPENSE
-    const category = await prisma.category.findFirst({
-      where: { id: parsedCategoryId, userId, type: 'EXPENSE' },
+    await budgetService.saveBudget({
+      userId,
+      categoryId: parsedCategoryId,
+      amount: parsedAmount,
+      month: parsedMonth,
+      year: parsedYear
     });
-
-    if (!category) {
-      return res.redirect(`/budgets?month=${parsedMonth}&year=${parsedYear}&error=Kategori+tidak+valid+atau+bukan+kategori+pengeluaran.`);
-    }
-
-    // Check if budget already exists for this category/month/year
-    const existingBudget = await prisma.budget.findFirst({
-      where: { userId, categoryId: parsedCategoryId, month: parsedMonth, year: parsedYear },
-    });
-
-    if (existingBudget) {
-      // Update
-      await prisma.budget.update({
-        where: { id: existingBudget.id },
-        data: { amount: parsedAmount },
-      });
-    } else {
-      // Create
-      await prisma.budget.create({
-        data: {
-          userId,
-          categoryId: parsedCategoryId,
-          amount: parsedAmount,
-          month: parsedMonth,
-          year: parsedYear,
-        },
-      });
-    }
 
     return res.redirect(`/budgets?month=${parsedMonth}&year=${parsedYear}&success=Anggaran+berhasil+disimpan.`);
   } catch (err) {
     console.error('Error saving budget:', err);
     const queryMonth = parseInt(req.body.month) || new Date().getMonth() + 1;
     const queryYear = parseInt(req.body.year) || new Date().getFullYear();
-    return res.redirect(`/budgets?month=${queryMonth}&year=${queryYear}&error=Gagal+menyimpan+anggaran.`);
+    return res.redirect(`/budgets?month=${queryMonth}&year=${queryYear}&error=${encodeURIComponent(err.message || 'Gagal menyimpan anggaran.')}`);
   }
 };
 
@@ -184,23 +98,11 @@ exports.deleteBudget = async (req, res) => {
       return res.redirect(`/budgets?month=${month}&year=${year}&error=ID+anggaran+tidak+valid.`);
     }
 
-    // Check ownership
-    const budget = await prisma.budget.findFirst({
-      where: { id: budgetId, userId },
-    });
-
-    if (!budget) {
-      return res.redirect(`/budgets?month=${month}&year=${year}&error=Anggaran+tidak+ditemukan.`);
-    }
-
-    // Delete
-    await prisma.budget.delete({
-      where: { id: budgetId },
-    });
+    await budgetService.deleteBudget({ budgetId, userId });
 
     return res.redirect(`/budgets?month=${month}&year=${year}&success=Anggaran+berhasil+dihapus.`);
   } catch (err) {
     console.error('Error deleting budget:', err);
-    return res.redirect(`/budgets?error=Gagal+menghapus+anggaran.`);
+    return res.redirect(`/budgets?month=${month}&year=${year}&error=${encodeURIComponent(err.message || 'Gagal menghapus anggaran.')}`);
   }
 };

@@ -1,4 +1,4 @@
-const prisma = require('../lib/prisma');
+const categoryService = require('../services/categoryService');
 
 /**
  * Display all categories for the logged-in user
@@ -6,15 +6,7 @@ const prisma = require('../lib/prisma');
 exports.getCategories = async (req, res) => {
   try {
     const userId = req.session.userId;
-    const categories = await prisma.category.findMany({
-      where: { userId },
-      include: {
-        _count: {
-          select: { transactions: true },
-        },
-      },
-      orderBy: [{ type: 'asc' }, { name: 'asc' }],
-    });
+    const categories = await categoryService.getCategories(userId);
 
     const error = req.query.error || null;
     const success = req.query.success || null;
@@ -54,31 +46,12 @@ exports.createCategory = async (req, res) => {
       return res.redirect('/categories?error=Tipe+kategori+tidak+valid.');
     }
 
-    // Check duplicate
-    const existing = await prisma.category.findFirst({
-      where: {
-        userId,
-        name: { equals: name.trim(), mode: 'insensitive' },
-        type,
-      },
-    });
-
-    if (existing) {
-      return res.redirect('/categories?error=Kategori+dengan+nama+dan+tipe+tersebut+sudah+ada.');
-    }
-
-    await prisma.category.create({
-      data: {
-        userId,
-        name: name.trim(),
-        type,
-      },
-    });
+    await categoryService.createCategory({ userId, name, type });
 
     return res.redirect('/categories?success=Kategori+berhasil+ditambahkan.');
   } catch (err) {
     console.error('Error creating category:', err);
-    return res.redirect('/categories?error=Gagal+menambahkan+kategori.');
+    return res.redirect(`/categories?error=${encodeURIComponent(err.message || 'Gagal menambahkan kategori.')}`);
   }
 };
 
@@ -104,27 +77,12 @@ exports.updateCategory = async (req, res) => {
       return res.redirect('/categories?error=Tipe+kategori+tidak+valid.');
     }
 
-    // Check ownership
-    const category = await prisma.category.findFirst({
-      where: { id: categoryId, userId },
-    });
-
-    if (!category) {
-      return res.redirect('/categories?error=Kategori+tidak+ditemukan.');
-    }
-
-    await prisma.category.update({
-      where: { id: categoryId },
-      data: {
-        name: name.trim(),
-        type,
-      },
-    });
+    await categoryService.updateCategory({ categoryId, userId, name, type });
 
     return res.redirect('/categories?success=Kategori+berhasil+diperbarui.');
   } catch (err) {
     console.error('Error updating category:', err);
-    return res.redirect('/categories?error=Gagal+mengedit+kategori.');
+    return res.redirect(`/categories?error=${encodeURIComponent(err.message || 'Gagal mengedit kategori.')}`);
   }
 };
 
@@ -141,34 +99,11 @@ exports.deleteCategory = async (req, res) => {
       return res.redirect('/categories?error=ID+kategori+tidak+valid.');
     }
 
-    // Find category & check ownership + transaction count
-    const category = await prisma.category.findFirst({
-      where: { id: categoryId, userId },
-      include: {
-        _count: {
-          select: { transactions: true },
-        },
-      },
-    });
-
-    if (!category) {
-      return res.redirect('/categories?error=Kategori+tidak+ditemukan.');
-    }
-
-    // Constraint check: Cannot delete if transactions exist
-    if (category._count.transactions > 0) {
-      return res.redirect(
-        '/categories?error=Kategori+tidak+dapat+dihapus+karena+sedang+digunakan+dalam+transaksi.'
-      );
-    }
-
-    await prisma.category.delete({
-      where: { id: categoryId },
-    });
+    await categoryService.deleteCategory({ categoryId, userId });
 
     return res.redirect('/categories?success=Kategori+berhasil+dihapus.');
   } catch (err) {
     console.error('Error deleting category:', err);
-    return res.redirect('/categories?error=Gagal+menghapus+kategori.');
+    return res.redirect(`/categories?error=${encodeURIComponent(err.message || 'Gagal menghapus kategori.')}`);
   }
 };
