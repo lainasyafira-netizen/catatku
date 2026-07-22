@@ -3,6 +3,7 @@ const express = require('express');
 const session = require('express-session');
 const csrf = require('csurf');
 const authRoutes = require('./routes/authRoutes');
+const dashboardRoutes = require('./routes/dashboardRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
 const transactionRoutes = require('./routes/transactionRoutes');
 const budgetRoutes = require('./routes/budgetRoutes');
@@ -68,10 +69,7 @@ app.get('/', (req, res) => {
 app.use('/auth', authRoutes);
 
 // Protected routes (Protected by requireAuth middleware)
-app.get('/dashboard', requireAuth, (req, res) => {
-  res.render('dashboard', { title: 'CatatKu - Dashboard' });
-});
-
+app.use('/dashboard', requireAuth, dashboardRoutes);
 app.use('/categories', requireAuth, categoryRoutes);
 app.use('/transactions', requireAuth, transactionRoutes);
 app.use('/budgets', requireAuth, budgetRoutes);
