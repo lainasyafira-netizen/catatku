@@ -4,7 +4,8 @@
   "description": "Aplikasi pencatatan keuangan berbasis web untuk mahasiswa",
   "main": "src/app.js",
   "scripts": {
-    "start": "node src/app.js",
+    "start": "prisma migrate deploy && node src/app.js",
+    "postinstall": "prisma generate",
     "dev": "node --watch src/app.js",
     "build:css": "npx tailwindcss -i ./public/css/input.css -o ./public/css/output.css --watch"
   },
