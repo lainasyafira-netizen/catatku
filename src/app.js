@@ -56,6 +56,7 @@ app.use((err, req, res, next) => {
       title: 'CatatKu - Masuk',
       error: 'Formulir kadaluarsa atau sesi CSRF tidak valid. Silakan coba lagi.',
       formData: { email: '' },
+      csrfToken: req.csrfToken()
     });
   }
   next(err);
